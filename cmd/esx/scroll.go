@@ -37,7 +37,15 @@ func doScroll(client *elastic.Client) error {
 			return err
 		}
 		for _, hit := range results.Hits.Hits {
-			err := enc.Encode(hit.Source)
+			var source map[string]interface{}
+			err := json.Unmarshal(*hit.Source, &source)
+			if err != nil {
+				return err
+			}
+			source["_index"] = hit.Index
+			source["_type"] = hit.Type
+			source["_id"] = hit.Id
+			err = enc.Encode(source)
 			if err != nil {
 				return err
 			}

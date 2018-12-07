@@ -23,6 +23,7 @@ var (
 	queryStr      = scrollCmd.Flag("query", "Query string").Short('q').String()
 	indexCmd      = kingpin.Command("index", "Indexes data into an ElasticSearch index")
 	batchSize     = indexCmd.Flag("batch-size", "Number of documents to batch index").Short('b').Default("100").Int()
+	docIdField    = indexCmd.Flag("doc-id-field", "JSON field to use as document ID").Short('i').Default("_id").String()
 	ProgressBar   = &Progress{}
 )
 

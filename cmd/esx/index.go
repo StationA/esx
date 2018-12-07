@@ -7,6 +7,7 @@ import (
 	"github.com/olivere/elastic"
 	"io"
 	"os"
+	"strings"
 )
 
 func doIndex(client *elastic.Client) error {
@@ -21,13 +22,21 @@ func doIndex(client *elastic.Client) error {
 		if err != nil {
 			return err
 		}
-		docId := doc["id"].(string)
-		delete(doc, "id")
+		docId := doc[*docIdField]
+		if docId == nil {
+			return fmt.Errorf("Document ID field [%s] is not set on document: %+v", *docIdField, doc)
+		}
+		for k, _ := range doc {
+			// Ignore all fields that start with an underscore
+			if strings.HasPrefix(k, "_") {
+				delete(doc, k)
+			}
+		}
 		req := elastic.NewBulkIndexRequest().
 			Type("doc_as_upsert").
 			Index(*esIndex).
 			Type(*esType).
-			Id(docId).
+			Id(fmt.Sprintf("%v", docId)).
 			Doc(doc)
 		batch.Add(req)
 		if batch.NumberOfActions() == *batchSize {
