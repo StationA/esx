@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	esHost        = kingpin.Flag("es-host", "ElasticSearch host:port").Short('H').Envar("ES_HOST").Required().String()
+	esHost        = kingpin.Flag("es-host", "ElasticSearch host:port").Short('H').Envar("ES_HOST").Default("localhost:9200").String()
 	esIndex       = kingpin.Flag("es-index", "ElasticSearch index to use").Short('I').Envar("ES_INDEX").Required().String()
 	esType        = kingpin.Flag("es-type", "ElasticSearch doc type to use").Short('D').Envar("ES_TYPE").Default("_doc").String()
 	esTimeout     = kingpin.Flag("es-timeout", "ElasticSearch operation timeout duration").Short('T').Default("10s").Duration()
