@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/olivere/elastic"
 	"io"
 	"os"
@@ -11,7 +12,22 @@ import (
 func doScroll(client *elastic.Client) error {
 	ctx := context.Background()
 	enc := json.NewEncoder(os.Stdout)
-	scroll := client.Scroll(*esIndex).Size(*scrollSize)
+	queryFile := *queryFile
+	queryStr := *queryStr
+	query := "{}"
+	if (queryStr != "" && queryFile != nil) {
+		return errors.New("Scroll cannot accept a query file and a query string.")
+	} else if queryStr != "" {
+		query = queryStr
+	} else if queryFile != nil {
+		data := make([]byte, 5000)
+		_, err := queryFile.Read(data)
+		if err != nil {
+			return err
+		}
+		query = string(data)
+	}
+	scroll := client.Scroll(*esIndex).Size(*scrollSize).Body(query)
 
 	if ProgressBar.IsEnabled() {
 		countCtx, countCancel := context.WithTimeout(ctx, *esTimeout)
