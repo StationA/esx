@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/olivere/elastic"
 	"gopkg.in/alecthomas/kingpin.v2"
+	"log"
 	"os"
 	"runtime"
 )
@@ -50,10 +51,19 @@ func main() {
 		ProgressBar.Enable()
 	}
 
-	client, err := elastic.NewClient(
+	clientOpts := []elastic.ClientOptionFunc{
 		elastic.SetURL(fmt.Sprintf("http://%s", *esHost)),
 		elastic.SetGzip(true),
-	)
+	}
+
+	if *debug {
+		clientOpts = append(clientOpts,
+			elastic.SetErrorLog(log.New(os.Stderr, "ELASTIC ", log.LstdFlags)),
+			elastic.SetInfoLog(log.New(os.Stderr, "", log.LstdFlags)),
+		)
+	}
+
+	client, err := elastic.NewClient(clientOpts...)
 	if err != nil {
 		panic(err)
 	}
