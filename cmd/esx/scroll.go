@@ -15,7 +15,7 @@ func doScroll(client *elastic.Client) error {
 	queryFile := *queryFile
 	queryStr := *queryStr
 	query := "{}"
-	if (queryStr != "" && queryFile != nil) {
+	if queryStr != "" && queryFile != nil {
 		return errors.New("Scroll cannot accept a query file and a query string.")
 	} else if queryStr != "" {
 		query = queryStr
