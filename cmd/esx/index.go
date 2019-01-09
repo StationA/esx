@@ -5,18 +5,24 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/olivere/elastic"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 	"io"
 	"os"
 	"strings"
+	"time"
 )
 
-type Batch []map[string]interface{}
+type Batch struct {
+	ID   int
+	Docs []map[string]interface{}
+}
 
 func indexWorker(ctx context.Context, client *elastic.Client, batches <-chan Batch) error {
 	for batch := range batches {
+		start := time.Now()
 		bulk := client.Bulk()
-		for _, doc := range batch {
+		for _, doc := range batch.Docs {
 			docId := doc[*docIdField]
 			if docId == nil {
 				return fmt.Errorf("Document ID field [%s] is not set on document: %+v", *docIdField, doc)
@@ -36,6 +42,8 @@ func indexWorker(ctx context.Context, client *elastic.Client, batches <-chan Bat
 			bulk.Add(req)
 		}
 		res, err := bulk.Do(ctx)
+		duration := time.Since(start)
+		log.Infof("Batch #%d (%d docs) took %.2fs to index\n", batch.ID, len(batch.Docs), duration.Seconds())
 		if err != nil {
 			return err
 		}
@@ -52,7 +60,7 @@ func indexWorker(ctx context.Context, client *elastic.Client, batches <-chan Bat
 
 func producer(ctx context.Context, client *elastic.Client, batches chan<- Batch) error {
 	dec := json.NewDecoder(os.Stdin)
-	var batch []map[string]interface{}
+	var batch Batch
 	for {
 		var doc map[string]interface{}
 		err := dec.Decode(&doc)
@@ -62,14 +70,14 @@ func producer(ctx context.Context, client *elastic.Client, batches chan<- Batch)
 		if err != nil {
 			return err
 		}
-		batch = append(batch, doc)
-		if len(batch) == *batchSize {
+		batch.Docs = append(batch.Docs, doc)
+		if len(batch.Docs) == *batchSize {
 			batches <- batch
-			batch = Batch{}
+			batch = Batch{ID: batch.ID + 1}
 		}
 	}
 	// Flush any remaining documents
-	if len(batch) > 0 {
+	if len(batch.Docs) > 0 {
 		batches <- batch
 	}
 	close(batches)

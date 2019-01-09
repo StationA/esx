@@ -3,8 +3,9 @@ package main
 import (
 	"fmt"
 	"github.com/olivere/elastic"
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/alecthomas/kingpin.v2"
-	"log"
+	"io/ioutil"
 	"os"
 	"runtime"
 )
@@ -17,12 +18,13 @@ var (
 	esType        = kingpin.Flag("es-type", "ElasticSearch doc type to use").Short('D').Envar("ES_TYPE").Default("_doc").String()
 	esTimeout     = kingpin.Flag("es-timeout", "ElasticSearch operation timeout duration").Short('T').Default("10s").Duration()
 	debug         = kingpin.Flag("debug", "Debug mode").Short('d').Bool()
+	quiet         = kingpin.Flag("quiet", "Silences all log output").Short('q').Bool()
 	progress      = kingpin.Flag("progress", "Report progress").Short('P').Bool()
 	scrollCmd     = kingpin.Command("scroll", "Scrolls an ElasticSearch index")
 	scrollSize    = scrollCmd.Flag("scroll-size", "ElasticSearch scroll size").Short('s').Default("100").Int()
 	scrollTimeout = scrollCmd.Flag("scroll-timeout", "ElasticSearch scroll timeout duration").Short('t').Default("10s").Duration()
 	queryFile     = scrollCmd.Flag("query-file", "Query JSON file").Short('f').File()
-	queryStr      = scrollCmd.Flag("query", "Query string").Short('q').String()
+	queryStr      = scrollCmd.Flag("query", "Query string").Short('Q').String()
 	indexCmd      = kingpin.Command("index", "Indexes data into an ElasticSearch index")
 	indexAction   = indexCmd.Flag("index-action", "Index action type (\"index\" or \"update\")").Short('a').Default("index").String()
 	numWorkers    = indexCmd.Flag("index-workers", "Number of index workers").Short('w').Default("0").Int()
@@ -56,11 +58,19 @@ func main() {
 		elastic.SetGzip(true),
 	}
 
+	if *quiet {
+		log.SetOutput(ioutil.Discard)
+	} else {
+		log.SetOutput(os.Stderr)
+	}
 	if *debug {
+		log.SetLevel(log.DebugLevel)
 		clientOpts = append(clientOpts,
-			elastic.SetErrorLog(log.New(os.Stderr, "ELASTIC ", log.LstdFlags)),
-			elastic.SetInfoLog(log.New(os.Stderr, "", log.LstdFlags)),
+			elastic.SetErrorLog(log.New()),
+			elastic.SetInfoLog(log.New()),
 		)
+	} else {
+		log.SetLevel(log.InfoLevel)
 	}
 
 	client, err := elastic.NewClient(clientOpts...)
