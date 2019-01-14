@@ -31,10 +31,11 @@ func indexBatch(ctx context.Context, client *elastic.Client, batch Batch) (time.
 		if docId == nil {
 			return 0, fmt.Errorf("Document ID field [%s] is not set on document: %+v", *docIdField, doc)
 		}
-		for k, _ := range doc {
+		docCopy := make(map[string]interface{})
+		for k, v := range doc {
 			// Ignore all fields that start with an underscore
-			if strings.HasPrefix(k, "_") {
-				delete(doc, k)
+			if !strings.HasPrefix(k, "_") {
+				docCopy[k] = v
 			}
 		}
 		req := elastic.NewBulkIndexRequest().
@@ -42,7 +43,7 @@ func indexBatch(ctx context.Context, client *elastic.Client, batch Batch) (time.
 			Index(*esIndex).
 			Type(*esType).
 			Id(fmt.Sprintf("%v", docId)).
-			Doc(doc)
+			Doc(docCopy)
 		bulk.Add(req)
 	}
 	res, err := bulk.Do(indexCtx)
