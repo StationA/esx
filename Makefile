@@ -5,19 +5,22 @@ tools:
 deps: tools
 	dep ensure
 
-build: tools
+test: tools
+	@go test -v ./...
+
+build: test
 	@go build -o target/esx ./...
 
-install: build
+install: test
 	@go install ./...
 
 target:
 	mkdir -p target
 
-release: build target
+release: test target
 	@CGO_ENABLED=0 go build -a -o target/esx ./cmd/esx
 
-release-all: build target
+release-all: test target
 	@CGO_ENABLED=0 GOOS=darwin GOARCH=386 go build -a -o target/esx.darwin-386 ./cmd/esx
 	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -a -o target/esx.darwin-amd64 ./cmd/esx
 	@CGO_ENABLED=0 GOOS=linux GOARCH=386 go build -a -o target/esx.linux-386 ./cmd/esx
@@ -30,4 +33,4 @@ release-all: build target
 clean:
 	@rm -rf target
 
-.PHONY: tools build install release release-all clean
+.PHONY: tools test build install release release-all clean
