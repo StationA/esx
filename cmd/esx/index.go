@@ -17,7 +17,7 @@ type Batch struct {
 	Docs []map[string]interface{}
 }
 
-func indexBatch(ctx context.Context, client *elastic.Client, batch Batch) (*time.Duration, error) {
+func indexBatch(ctx context.Context, client *elastic.Client, batch Batch) (time.Duration, error) {
 	indexCtx, indexCancel := context.WithTimeout(ctx, *esTimeout)
 	defer indexCancel()
 	log := Log.
@@ -29,7 +29,7 @@ func indexBatch(ctx context.Context, client *elastic.Client, batch Batch) (*time
 	for _, doc := range batch.Docs {
 		docId := doc[*docIdField]
 		if docId == nil {
-			return nil, fmt.Errorf("Document ID field [%s] is not set on document: %+v", *docIdField, doc)
+			return 0, fmt.Errorf("Document ID field [%s] is not set on document: %+v", *docIdField, doc)
 		}
 		for k, _ := range doc {
 			// Ignore all fields that start with an underscore
@@ -48,7 +48,7 @@ func indexBatch(ctx context.Context, client *elastic.Client, batch Batch) (*time
 	res, err := bulk.Do(indexCtx)
 	duration := time.Since(start)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 	failed := res.Failed()
 	if len(failed) > 0 {
@@ -57,11 +57,11 @@ func indexBatch(ctx context.Context, client *elastic.Client, batch Batch) (*time
 				WithField("doc-id", failure.Id).
 				Errorf("Document failed to index: %+v", failure.Error)
 		}
-		return nil, fmt.Errorf("Batch [%d] failed: %+v", batch.ID, failed)
+		return 0, fmt.Errorf("Batch [%d] failed: %+v", batch.ID, failed)
 	} else {
 		log.Infof("Batch completed in %.2fs", duration.Seconds())
 	}
-	return &duration, nil
+	return duration, nil
 }
 
 func indexWorker(ctx context.Context, client *elastic.Client, batches <-chan Batch) error {
@@ -76,7 +76,7 @@ func indexWorker(ctx context.Context, client *elastic.Client, batches <-chan Bat
 			retry := 0
 			for {
 				t, err := indexBatch(ctx, client, batch)
-				throttle.Collect(*t)
+				throttle.Collect(t)
 				if err != nil {
 					if retry < *numRetries {
 						retry += 1
