@@ -146,7 +146,8 @@ func doIndex(client *elastic.Client) error {
 	batches := make(chan Batch, (*numWorkers)*2)
 	throttle := NewSamplingThrottle(
 		SetLimit(*esTimeout),
-		SetWindowSize(50),
+		SetHWM(float64(*throttleHWM)/100.0),
+		SetWindowSize(*throttleWindowSize),
 	)
 
 	g, ctx := errgroup.WithContext(cancelCtx)

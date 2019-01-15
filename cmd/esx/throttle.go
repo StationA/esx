@@ -9,6 +9,7 @@ import (
 type SamplingThrottle struct {
 	mut           sync.Mutex
 	limit         time.Duration
+	hwm           float64
 	windowSize    int
 	backoffFactor float64
 	samples       []float64
@@ -20,6 +21,7 @@ func NewSamplingThrottle(opts ...ThrottleOpt) *SamplingThrottle {
 	s := new(SamplingThrottle)
 	// Set defaults
 	s.limit = 30 * time.Second
+	s.hwm = 0.5
 	s.windowSize = 10
 	s.backoffFactor = 1.0
 	// Then optionally override
@@ -27,6 +29,12 @@ func NewSamplingThrottle(opts ...ThrottleOpt) *SamplingThrottle {
 		opt(s)
 	}
 	return s
+}
+
+func SetHWM(hwm float64) ThrottleOpt {
+	return func(s *SamplingThrottle) {
+		s.hwm = hwm
+	}
 }
 
 func SetLimit(limit time.Duration) ThrottleOpt {
@@ -84,7 +92,9 @@ func (s *SamplingThrottle) computeBackoff(m, b float64) (time.Duration, time.Dur
 	// Predict the duration of the next call
 	x := float64(len(s.samples))
 	pred := m*x + b
-	strength := math.Pow(pred, 2.0) / s.limit.Seconds()
+	// Then compute the backoff as the "distance" the predicted value squared is from the high water
+	// mark (in seconds)
+	strength := math.Pow(pred, 2.0) / (s.limit.Seconds() * s.hwm)
 	backoff := strength * s.backoffFactor
 	if backoff > 0 {
 		backoffTime = time.Duration(backoff * float64(time.Second))
