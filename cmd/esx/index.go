@@ -58,7 +58,7 @@ func indexBatch(ctx context.Context, client *elastic.Client, batch Batch) (time.
 				WithField("doc-id", failure.Id).
 				Errorf("Document failed to index: %+v", failure.Error)
 		}
-		return 0, fmt.Errorf("Batch [%d] failed: %+v", batch.ID, failed)
+		return 0, fmt.Errorf("Failed docs: %+v", failed)
 	} else {
 		log.Infof("Batch completed in %.2fs", duration.Seconds())
 	}
@@ -81,7 +81,10 @@ func indexWorker(ctx context.Context, client *elastic.Client, batches <-chan Bat
 				if err != nil {
 					if retry < *numRetries {
 						retry += 1
-						log.Warnf("Batch failed, retrying (%d of %d)", retry, *numRetries)
+						log.Warnf("Batch [%d] failed: %v", batch.ID, err)
+						log.Warnf("Batch [%d] retrying (%d of %d)", batch.ID, retry, *numRetries)
+						// Make sure to wait again before retrying
+						<-throttle.Wait()
 					} else {
 						return err
 					}
