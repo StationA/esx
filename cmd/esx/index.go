@@ -49,7 +49,7 @@ func indexBatch(ctx context.Context, client *elastic.Client, batch Batch) (time.
 	res, err := bulk.Do(indexCtx)
 	duration := time.Since(start)
 	if err != nil {
-		return 0, err
+		return duration, err
 	}
 	failed := res.Failed()
 	if len(failed) > 0 {
@@ -58,7 +58,7 @@ func indexBatch(ctx context.Context, client *elastic.Client, batch Batch) (time.
 				WithField("doc-id", failure.Id).
 				Errorf("Document failed to index: %+v", failure.Error)
 		}
-		return 0, fmt.Errorf("Failed docs: %+v", failed)
+		return duration, fmt.Errorf("Failed docs: %+v", failed)
 	} else {
 		log.Infof("Batch completed in %.2fs", duration.Seconds())
 	}
