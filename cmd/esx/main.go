@@ -52,7 +52,7 @@ func main() {
 	if *numWorkers < 1 {
 		*numWorkers = WorkersPerCPU * numCores
 	}
-	runtime.GOMAXPROCS(numCores)
+	runtime.GOMAXPROCS(*numWorkers)
 
 	if *progress {
 		ProgressBar.Enable()
