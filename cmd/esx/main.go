@@ -26,7 +26,7 @@ var (
 	queryFile          = scrollCmd.Flag("query-file", "Query JSON file").Short('f').File()
 	queryStr           = scrollCmd.Flag("query", "Query string").Short('Q').String()
 	indexCmd           = kingpin.Command("index", "Indexes data into an ElasticSearch index")
-	indexAction        = indexCmd.Flag("index-action", "Index action type (\"index\" or \"update\")").Short('a').Default("index").String()
+	indexPartial       = indexCmd.Flag("partial", "Creates new documents or does a partial upsert").Bool()
 	docIdField         = indexCmd.Flag("doc-id-field", "JSON field to use as document ID").Short('i').Default("_id").String()
 	numWorkers         = indexCmd.Flag("index-workers", "Number of index workers").Short('w').Default("0").Int()
 	batchSize          = indexCmd.Flag("batch-size", "Number of documents to batch index").Short('b').Default("100").Int()
@@ -40,8 +40,7 @@ var (
 
 func handleErr(cmd string, err error) {
 	if err != nil {
-		Log.Errorf("%s failed: %v", cmd, err)
-		os.Exit(1)
+		kingpin.Fatalf("%s failed: %v", cmd, err)
 	}
 }
 
@@ -60,7 +59,7 @@ func main() {
 
 	clientOpts := []elastic.ClientOptionFunc{
 		elastic.SetURL(fmt.Sprintf("http://%s", *esHost)),
-		elastic.SetGzip(true),
+		elastic.SetGzip(false),
 	}
 
 	Log.Formatter = &logrus.TextFormatter{FullTimestamp: true}
@@ -77,7 +76,7 @@ func main() {
 
 	client, err := elastic.NewClient(clientOpts...)
 	if err != nil {
-		panic(err)
+		kingpin.Fatalf("Failed to initialize client: %v", err)
 	}
 	defer client.Stop()
 

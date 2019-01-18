@@ -28,8 +28,11 @@ func indexBatch(ctx context.Context, client *elastic.Client, batch Batch) (time.
 	bulk := client.Bulk()
 	for _, doc := range batch.Docs {
 		docId := doc[*docIdField]
-		if docId == nil {
-			return 0, fmt.Errorf("Document ID field [%s] is not set on document: %+v", *docIdField, doc)
+		if *indexPartial {
+			if docId == nil {
+				return 0, fmt.Errorf("Missing ID field [%s] for partial upsert: %+v", *docIdField, doc)
+			}
+			docId = fmt.Sprintf("%v", docId)
 		}
 		docCopy := make(map[string]interface{})
 		for k, v := range doc {
@@ -38,14 +41,29 @@ func indexBatch(ctx context.Context, client *elastic.Client, batch Batch) (time.
 				docCopy[k] = v
 			}
 		}
-		req := elastic.NewBulkIndexRequest().
-			OpType(*indexAction).
-			Index(*esIndex).
-			Type(*esType).
-			Id(fmt.Sprintf("%v", docId)).
-			Doc(docCopy)
+		var req elastic.BulkableRequest
+		if *indexPartial {
+			req = elastic.NewBulkUpdateRequest().
+				DocAsUpsert(true).
+				Index(*esIndex).
+				Type(*esType).
+				Id(docId.(string)).
+				Doc(docCopy)
+		} else {
+			req = elastic.NewBulkIndexRequest().
+				OpType("index").
+				Index(*esIndex).
+				Type(*esType).
+				Doc(docCopy)
+			// If no document ID is set, just us the auto-generated IDs from Elasticsearch
+			if docId != nil {
+				req = req.(*elastic.BulkIndexRequest).
+					Id(docId.(string))
+			}
+		}
 		bulk.Add(req)
 	}
+	log.Debugf("Batch size = %d (%d bytes)", bulk.NumberOfActions(), bulk.EstimatedSizeInBytes())
 	res, err := bulk.Do(indexCtx)
 	duration := time.Since(start)
 	if err != nil {
