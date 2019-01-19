@@ -47,6 +47,10 @@ func handleErr(cmd string, err error) {
 func main() {
 	cmd := kingpin.Parse()
 
+	if *queryStr != "" && *queryFile != nil {
+		kingpin.Fatalf("Only provide -Q or -f, not both")
+	}
+
 	numCores := runtime.NumCPU()
 	if *numWorkers < 1 {
 		*numWorkers = WorkersPerCPU * numCores
