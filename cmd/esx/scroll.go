@@ -51,9 +51,13 @@ func doScroll(client *elastic.Client) error {
 		}
 		for _, hit := range results.Hits.Hits {
 			var source map[string]interface{}
-			err := json.Unmarshal(*hit.Source, &source)
-			if err != nil {
-				return err
+			if hit.Source != nil {
+			    err := json.Unmarshal(*hit.Source, &source)
+			    if err != nil {
+			        return err
+			    }
+			} else {
+			    source = make(map[string]interface{})
 			}
 			source["_index"] = hit.Index
 			source["_type"] = hit.Type
