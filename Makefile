@@ -1,11 +1,8 @@
-tools:
-	@go install github.com/golang/dep/cmd/dep
-	@go get golang.org/x/tools/cmd/stringer
+deps:
+	go mod tidy
+	go mod verify
 
-deps: tools
-	dep ensure
-
-test: tools
+test: deps
 	@go test -v ./...
 
 build: test
@@ -33,4 +30,4 @@ release-all: test target
 clean:
 	@rm -rf target
 
-.PHONY: tools test build install release release-all clean
+.PHONY: test build install release release-all clean
